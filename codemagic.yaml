@@ -25,12 +25,25 @@ workflows:
           cd ios
           pod install --repo-update
           cd ..
-      - name: 构建未签名 IPA
-        # --no-codesign 产出未签名 IPA，供 Sideloadly 用你的 Apple ID 签名。
-        # 不要改成签名构建：免费个人账号无法在云端自动签名，会失败。
-        script: flutter build ipa --release --no-codesign
+      - name: 构建未签名 .app
+        # 未签名构建只能用 flutter build ios --no-codesign，产物是 .app。
+        # flutter build ipa 需要签名/归档流程，免费个人账号在云端跑不通。
+        script: flutter build ios --release --no-codesign
+      - name: 把 .app 打包成标准 .ipa
+        # .app 不能直接给 Sideloadly 用，需按 Apple 的 IPA 结构打包：
+        # Payload/Runner.app 打成 zip 再改后缀 .ipa。
+        script: |
+          APP_PATH=$(find build/ios/iphoneos -maxdepth 1 -name "*.app" -type d | head -1)
+          if [ -z "$APP_PATH" ]; then echo "找不到 .app 产物"; exit 1; fi
+          mkdir -p build/ios/ipa/Payload
+          cp -R "$APP_PATH" build/ios/ipa/Payload/
+          cd build/ios/ipa
+          zip -q -r runner-unsigned.ipa Payload
+          cd "$CM_BUILD_DIR"
+          echo "IPA 已生成: $(ls -lh build/ios/ipa/runner-unsigned.ipa)"
     artifacts:
       - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
     publishing:
       scripts:
         # 构建完成后在 Codemagic 页面点 Artifacts 直接下载 IPA。
