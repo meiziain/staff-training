@@ -1,0 +1,38 @@
+# Codemagic 云构建配置 —— 免费方案产出未签名 IPA
+# 用法：把项目推到 GitHub/GitLab 私有库 → Codemagic 里 Add app 选中本文件 → Start build
+# 免费额度：500 macOS M2 分钟/月，本构建约 7-15 分钟，够打 20+ 次
+# 详细装机步骤见项目根目录文档《iPad 测试包构建与安装指南.md》
+
+workflows:
+  ios-ipa-unsigned:
+    name: iOS IPA (unsigned, for sideload)
+    max_build_duration: 30
+    instance_type: mac_mini_m2
+    environment:
+      flutter: stable
+      # Flutter 3.50.0 / Dart 3.14.0，与本地一致；锁 stable 避免漂移
+      xcode: latest
+      cocoapods: default
+    scripts:
+      - name: Flutter 版本
+        script: flutter --version
+      - name: 获取依赖
+        script: flutter pub get
+      - name: iOS 部署目标对齐 Pod
+        # 插件 flutter_midi_command_ble 等要求较高 iOS 版本；工程是 15.0，
+        # 若 CocoaPods 报最低版本冲突，把下面 15.0 改成插件要求值（如 16.0）重试。
+        script: |
+          cd ios
+          pod install --repo-update
+          cd ..
+      - name: 构建未签名 IPA
+        # --no-codesign 产出未签名 IPA，供 Sideloadly 用你的 Apple ID 签名。
+        # 不要改成签名构建：免费个人账号无法在云端自动签名，会失败。
+        script: flutter build ipa --release --no-codesign
+    artifacts:
+      - build/ios/ipa/*.ipa
+    publishing:
+      scripts:
+        # 构建完成后在 Codemagic 页面点 Artifacts 直接下载 IPA。
+        # 如需自动发邮件/钉钉，可在这里加，不影响装机。
+        - echo "IPA 已生成，请在 Artifacts 下载"

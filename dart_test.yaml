@@ -1,0 +1,4 @@
+# 测试运行口径（08：domain/data 用 dart test，零 Flutter 依赖）：
+#   dart test -x widget        # domain + data 全部单测/性质测试
+#   flutter test -t widget     # widget 冒烟（需 Flutter binding）
+# widget 测试以 @Tags(['widget']) 标记，避免 dart test 误加载。
